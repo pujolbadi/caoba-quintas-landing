@@ -1,6 +1,27 @@
 # Bitácora — caoba_landing_page
 
 
+## 2026-09-02 | sesión larga (landing + CRM Notion)
+
+**Qué se hizo:**
+- Verificación completa del proyecto (tests 15/15, `wrangler dry-run` de ambos workers OK, secretos fuera de git, migraciones D1 coherentes). Sano.
+- Limpieza de archivos sueltos: assets fuente a `docs/marca/`; redundantes (zips, renders Gemini) y el `Brief_Tecnico_Alternativa2` parkeados en `../caoba-pendiente-organizar/`; `.claude/` y `.atl/` al `.gitignore`. Commit `d107acf`.
+- Inventario de lotes actualizado según master plan nuevo (rojo = vendido). Disponibles: **11, 13, 14, 35, 36**. `LOTS` 13→5, `availableMap` 13→4, hero "Lote destacado" Lote 1 (vendido)→Lote 11. Commit `6c9f584`.
+- Notion: proyecto "Cobranza Caoba Quintas" → **"Caoba — CRM integrado y Cartera"**, repo `pujolbadi/caoba` linkeado. Creadas 6 tarjetas: F0 Discovery, F1 CRM de venta, F1.5 Inventario de quintas con trazabilidad, F2 Cartera (gaps sobre `pujolbadi/caoba`), F3 Comisiones, F4 Legal (demo). Tarjeta vieja `CRM` (de D. Berrocal) sin tocar.
+
+**Dónde quedamos:**
+- El `LOTS_GEO` del mapa Leaflet no coincide con las parcelas reales y no hay plano catastrado. Plan acordado: georreferenciar el master plan sobre el satélite y calcar 5 polígonos. Herramienta lista en `preview-mapa-setup.html` (gitignored). El usuario la iba a usar y pasar dos exports (esquinas de la imagen + GeoJSON de lotes).
+- 2 commits en `main` **sin pushear** — nada desplegado aún. No pushear hasta cerrar el mapa, o decidir shippear el interino (5 tarjetas / 4 en verde).
+- El usuario va a hacer un reacomodo de carpetas (`caoba/` → `clientes/caoba/landing/` probablemente).
+
+**Qué falta:**
+- Integrar el mapa: reemplazar `LOTS_GEO`/`availableMap` por la imagen del master plan como capa + 5 polígonos clicables; sacar los popups armados sobre geometría rota.
+- Identificar el polígono del Lote 13.
+- Pendiente menor viejo: comentario huérfano `// tweaks-panel.jsx` en `public/index.html:248`.
+- Decidir destino de `../caoba-pendiente-organizar/` en el reacomodo.
+- `Imágenes actualizadas.jpeg` sigue sin trackear en la raíz (fuente del master plan).
+
+
 ## 2026-06-16 | 18:29
 
 **Qué se hizo:**
