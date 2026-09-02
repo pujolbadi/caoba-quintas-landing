@@ -5,6 +5,12 @@ node_modules/
 # Credenciales locales (sensibles, nunca al repo) — viven en secrets/
 secrets/
 credenciales_caoba.md
-
 # Videos pesados (drone)
 Videos/
+# Tooling local del agente (por-máquina, no al repo)
+.claude/
+.atl/
+preview-indices.html
+# throwaway: herramienta de georreferencia del mapa
+preview-mapa-setup.html
+masterplan.jpg
