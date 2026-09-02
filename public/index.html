@@ -787,25 +787,10 @@ const useWaUrl = () => {
 };
 
 /* ── DATA ─────────────────────────────────────────────────────── */
+// Inventario actualizado según master plan (rojo = vendido). Disponibles: 11, 13, 14, 35, 36.
+// El Lote 13 se agrega como tarjeta ahora; su polígono en el mapa (availableMap) se
+// confirma sobre un deploy preview antes de marcarlo verde.
 const LOTS = [{
-  id: 1,
-  name: "Lote 1",
-  price: "Consultar precio",
-  size: "9.414 m²",
-  tag: "Disponible",
-  zone: "Sector Sur",
-  features: ["Agua y luz", "El más amplio del proyecto", "Acceso directo vial"],
-  bg: "#2D4A3E"
-}, {
-  id: 2,
-  name: "Lote 3",
-  price: "Consultar precio",
-  size: "5.828 m²",
-  tag: "Disponible",
-  zone: "Sector Sur",
-  features: ["Agua y luz", "Sector sur", "Amplio y bien ubicado"],
-  bg: "#5c3a22"
-}, {
   id: 13,
   name: "Lote 11",
   price: "Consultar precio",
@@ -815,6 +800,15 @@ const LOTS = [{
   features: ["Agua y luz", "Acceso vial", "Entorno arborizado"],
   bg: "#3D5C45"
 }, {
+  id: 14,
+  name: "Lote 13",
+  price: "Consultar precio",
+  size: "5.189 m²",
+  tag: "Disponible",
+  zone: "Sector Central",
+  features: ["Agua y luz", "Acceso vial", "Entorno arborizado"],
+  bg: "#5c3a22"
+}, {
   id: 3,
   name: "Lote 14",
   price: "Consultar precio",
@@ -822,60 +816,6 @@ const LOTS = [{
   tag: "Disponible",
   zone: "Sector Norte",
   features: ["Agua y luz", "Cerca de acceso principal", "Vista despejada"],
-  bg: "#6B3D28"
-}, {
-  id: 4,
-  name: "Lote 28",
-  price: "Consultar precio",
-  size: "5.017 m²",
-  tag: "Disponible",
-  zone: "Sector Sur",
-  features: ["Agua y luz", "Entorno tranquilo", "Arborizado"],
-  bg: "#3D5C45"
-}, {
-  id: 5,
-  name: "Lote 30",
-  price: "Consultar precio",
-  size: "5.155 m²",
-  tag: "Disponible",
-  zone: "Sector Central",
-  features: ["Agua y luz", "Frente a boulevard interno", "Listo para construir"],
-  bg: "#8B5A3C"
-}, {
-  id: 6,
-  name: "Lote 31",
-  price: "Consultar precio",
-  size: "5.051 m²",
-  tag: "Disponible",
-  zone: "Sector Central",
-  features: ["Agua y luz", "Frente a boulevard interno", "Privacidad"],
-  bg: "#4a6545"
-}, {
-  id: 7,
-  name: "Lote 32",
-  price: "Consultar precio",
-  size: "5.034 m²",
-  tag: "Disponible",
-  zone: "Sector Central",
-  features: ["Agua y luz", "Frente a boulevard interno", "Acceso amplio"],
-  bg: "#5c3a22"
-}, {
-  id: 8,
-  name: "Lote 33",
-  price: "Consultar precio",
-  size: "5.018 m²",
-  tag: "Disponible",
-  zone: "Sector Central",
-  features: ["Agua y luz", "Frente a boulevard interno", "Esquinero"],
-  bg: "#2D4A3E"
-}, {
-  id: 9,
-  name: "Lote 34",
-  price: "Consultar precio",
-  size: "5.082 m²",
-  tag: "Disponible",
-  zone: "Sector Central",
-  features: ["Agua y luz", "Frente a boulevard interno", "Vista al entorno"],
   bg: "#6B3D28"
 }, {
   id: 10,
@@ -895,20 +835,11 @@ const LOTS = [{
   zone: "Sector Central",
   features: ["Agua y luz", "Frente a boulevard interno", "Colinda con zona verde"],
   bg: "#8B5A3C"
-}, {
-  id: 12,
-  name: "Lote 39",
-  price: "Consultar precio",
-  size: "5.000 m²",
-  tag: "Disponible",
-  zone: "Sector Central",
-  features: ["Agua y luz", "Boulevard interno", "Amplio y plano"],
-  bg: "#4a6545"
 }];
 
 /* ── FILTRO DE LOTES ─────────────────────────────────────────── */
 // Zonas reales del proyecto y buckets de tamaño derivados de los datos
-// reales (3.589 – 9.414 m²; usan "." como separador de miles).
+// reales (3.589 – 5.189 m²; usan "." como separador de miles).
 const ZONE_OPTS = ['Sector Norte', 'Sector Sur', 'Sector Central'];
 const SIZE_OPTS = ['Hasta 5.000 m²', '5.000–7.000 m²', 'Más de 7.000 m²'];
 // Convierte "5.155 m²" → 5155
@@ -1407,7 +1338,7 @@ const HeroCarousel = () => {
       fontSize: 14,
       color: 'var(--caoba-900)'
     }
-  }, "Lote 1 \u2014 9.414 m\xB2"), /*#__PURE__*/React.createElement("div", {
+  }, "Lote 11 \u2014 5.159 m\xB2"), /*#__PURE__*/React.createElement("div", {
     className: "tnum",
     style: {
       fontSize: 13,
@@ -2971,20 +2902,13 @@ const LeafletMap = () => {
     }
 
     // Lotes disponibles: GeoJSON feature index → nombre en LOTS
+    // Inventario actualizado (master plan, rojo = vendido). Disponibles: 11, 13, 14, 35, 36.
+    // Lote 13 pendiente: falta identificar su polígono en LOTS_GEO sobre un preview.
     const availableMap = {
-      68: 'Lote 3',
       62: 'Lote 11',
-      70: 'Lote 1',
       57: 'Lote 14',
-      54: 'Lote 28',
-      74: 'Lote 30',
-      72: 'Lote 31',
-      61: 'Lote 32',
-      3: 'Lote 33',
-      2: 'Lote 34',
       0: 'Lote 35',
-      59: 'Lote 36',
-      60: 'Lote 39'
+      59: 'Lote 36'
     };
     L.geoJSON(LOTS_GEO, {
       filter: f => !featureIsRoad(f),
