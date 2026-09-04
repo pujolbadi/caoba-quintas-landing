@@ -1,6 +1,6 @@
 # RUNBOOK — caoba (Caoba Quintas)
 
-> Última actualización: 2026-07-01 · Dueño: por definir · Repo: `Dmr343/caoba-quintas-landing`
+> Última actualización: 2026-09-04 · Dueño: por definir · Repo: `Dmr343/caoba-quintas-landing`
 > Cómo mantener: actualizar este archivo en el MISMO PR que cambie infraestructura.
 
 ## 1. Qué es / resumen operativo
@@ -97,10 +97,27 @@ Ninguno. Sin cron triggers, KV ni R2 en ninguno de los dos workers.
   EasyPanel (`bot-whatsapp-evolution-api.r4gls5.easypanel.host`).
 - **Leads no llegan por email**: revisar `RESEND_API_KEY` y que `NOTIFY_EMAIL` (`udmr343@gmail.com`)
   siga siendo la dirección correcta.
+- **Auto-deploy del sitio falla con `Authentication error [code: 10000]`**: el secret de GitHub
+  Actions `CLOUDFLARE_API_TOKEN` (o `CLOUDFLARE_ACCOUNT_ID`) está vencido o le faltan permisos —
+  ver blocker activo en sección 12. Verificar corridas: `gh run list --branch main`.
 
 ## 12. Migración en curso / blockers
 
-Ninguno activo. Repo reorganizado a `public/` / `config/` / `worker/` (ver BITACORA.md).
+**Auto-deploy del sitio roto desde 2026-07-26** (detectado 2026-09-04 al pushear el fix del mapa
+de lotes — commit `eb3461c` sí llegó a `origin/main`, pero el workflow `Deploy a Cloudflare Pages`
+falló). Último deploy exitoso: 2026-06-17. Causa: `Authentication error [code: 10000]` de la API de
+Cloudflare — el secret `CLOUDFLARE_API_TOKEN` de GitHub Actions está vencido o sin los permisos de
+Pages. `npx wrangler whoami` local tampoco está autenticado, así que no hay deploy manual de
+respaldo disponible sin antes hacer login.
+
+Para resolver:
+1. Generar un token nuevo en el dashboard de Cloudflare (cuenta `berrocal.dbp@gmail.com`,
+   account_id `b910323a680984cdf79e11913711dffc`) con permiso de edición sobre Pages.
+2. Actualizar el secret `CLOUDFLARE_API_TOKEN` (y `CLOUDFLARE_ACCOUNT_ID` si hiciera falta) en
+   GitHub → repo → Settings → Secrets and variables → Actions.
+3. Re-correr el workflow fallido (`gh run rerun <id>`) o volver a pushear a `main`.
+
+Repo reorganizado a `public/` / `config/` / `worker/` (ver BITACORA.md).
 
 ---
 Fuentes: `config/wrangler.toml`, `config/wrangler.bot.toml`, `.github/workflows/deploy-pages.yml`,
