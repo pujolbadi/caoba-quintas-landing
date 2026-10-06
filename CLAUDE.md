@@ -15,6 +15,15 @@ Full operational reference (deploy, rollback, secrets, DB access, troubleshootin
 `RUNBOOK.md` — read it before touching infra, and update it in the same PR that changes any.
 Session history and decisions are logged in `BITACORA.md`.
 
+## Context and branches
+
+- Lives in `~/Work/pujolbadi/caoba-quintas-landing` (repo `pujolbadi/caoba-quintas-landing`);
+  identity, servers and conventions are in `~/Work/pujolbadi/CLAUDE.md`.
+- The org branch policy applies (`documentacion/politica-de-ramas.md`): `main` is production; changes
+  go in short branches (`feature/`, `fix/`, `chore/`, `docs/`) back to `main` through a PR with
+  Squash and merge. The static site deploys itself from `main`; the two Workers are deployed by hand
+  with `wrangler deploy`, always from `main`.
+
 ## Commands
 
 ```bash
