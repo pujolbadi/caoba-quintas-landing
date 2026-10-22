@@ -75,3 +75,36 @@ test('leads: acepta las fuentes que envía el sitio (hero, cta_final, lote_*)', 
     assert.equal(env.DB.calls[0].params[2], fuente ?? 'hero');
   }
 });
+
+/* ── M-051: correo de aviso y límites de longitud ────────────── */
+
+test('leads: el correo de aviso escapa nombre y teléfono', async t => {
+  const enviados = [];
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    enviados.push(JSON.parse(init.body));
+    return new Response('{}', { status: 200 });
+  });
+  const env = { DB: makeFakeDB(), RESEND_API_KEY: 'k', NOTIFY_EMAIL: 'a@b.c' };
+  const res = await worker.fetch(leadRequest({
+    nombre: '<a href="https://phish.example">Ganaste</a>',
+    telefono: '<img src=x>',
+    fuente: 'hero',
+  }), env);
+  assert.equal(res.status, 201);
+  assert.equal(enviados.length, 1);
+  assert.ok(!enviados[0].html.includes('<a '), 'sin enlaces inyectados');
+  assert.ok(!enviados[0].html.includes('<img'), 'sin imágenes inyectadas');
+  assert.ok(enviados[0].html.includes('&lt;a href='));
+});
+
+test('leads: rechaza nombre o teléfono de más de 120 caracteres', async () => {
+  const env = { DB: makeFakeDB() };
+  const largo = 'x'.repeat(121);
+  for (const body of [{ nombre: largo, telefono: '8888' }, { nombre: 'Ana', telefono: largo }]) {
+    const res = await worker.fetch(leadRequest(body), env);
+    assert.equal(res.status, 400);
+  }
+  assert.equal(env.DB.calls.length, 0);
+  const ok = await worker.fetch(leadRequest({ nombre: 'x'.repeat(120), telefono: '8888' }), env);
+  assert.equal(ok.status, 201);
+});

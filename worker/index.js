@@ -216,6 +216,9 @@ async function handleLead(request, env) {
   if (!nombre || !telefono) {
     return corsResponse({ error: 'nombre y telefono son requeridos' }, 400);
   }
+  if (nombre.length > MAX_CAMPO || telefono.length > MAX_CAMPO) {
+    return corsResponse({ error: `nombre y telefono admiten hasta ${MAX_CAMPO} caracteres` }, 400);
+  }
   if (!fuenteValida(fuente)) {
     return corsResponse({ error: 'fuente inválida' }, 400);
   }
@@ -249,9 +252,9 @@ async function sendEmail(env, nombre, telefono, fuente) {
       from: 'leads@caobaquintas.com',
       to: env.NOTIFY_EMAIL,
       subject: `Nuevo lead — ${nombre}`,
-      html: `<p><strong>Nombre:</strong> ${nombre}</p>
-             <p><strong>Teléfono:</strong> ${telefono}</p>
-             <p><strong>Fuente:</strong> ${fuente}</p>`,
+      html: `<p><strong>Nombre:</strong> ${esc(nombre)}</p>
+             <p><strong>Teléfono:</strong> ${esc(telefono)}</p>
+             <p><strong>Fuente:</strong> ${esc(fuente)}</p>`,
     }),
   });
 }
@@ -259,6 +262,8 @@ async function sendEmail(env, nombre, telefono, fuente) {
 /* ── Helpers ─────────────────────────────────────────────────── */
 // Fuentes que envía el sitio: formulario del hero, CTA final y CTA con lote
 // elegido (`lote_<nombre-del-lote>`, ver public/index.html).
+const MAX_CAMPO = 120;
+
 const FUENTES = new Set(['hero', 'cta_final']);
 const FUENTE_LOTE = /^lote_[a-z0-9-]{1,32}$/;
 
