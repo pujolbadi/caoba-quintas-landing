@@ -127,11 +127,14 @@ export async function runEngine(msg, deps) {
   }
 
   // 4. Solo ahora: aplicar efectos en el orden declarado (best-effort).
+  //    Si falla saveSession se omiten los siguientes: dependen de que el paso
+  //    haya avanzado y, si no, el próximo mensaje repetiría el lead y el aviso.
   for (const effect of decision.effects) {
     try {
       await applyEffect(effect, msg.phone);
     } catch (err) {
       console.error('runEngine effect failed:', effect.type, err);
+      if (effect.type === 'saveSession') break;
     }
   }
 
