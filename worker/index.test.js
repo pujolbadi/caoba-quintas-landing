@@ -108,3 +108,24 @@ test('leads: rechaza nombre o teléfono de más de 120 caracteres', async () => 
   const ok = await worker.fetch(leadRequest({ nombre: 'x'.repeat(120), telefono: '8888' }), env);
   assert.equal(ok.status, 201);
 });
+
+/* ── M-052: inyección de fórmulas en el CSV ──────────────────── */
+
+test('csv: neutraliza valores que empiezan como fórmula', async () => {
+  const env = {
+    ADMIN_PASSWORD: 'pw',
+    DB: makeFakeDB({
+      rows: [
+        { id: 1, nombre: '=HYPERLINK("https://x.example","clic")', telefono: '+50688887777', fuente: 'hero', created_at: '' },
+        { id: 2, nombre: '@SUM(A1)', telefono: '-1', fuente: '\tcta_final', created_at: '' },
+        { id: 3, nombre: 'Ana, Pérez', telefono: '8888', fuente: 'hero', created_at: '' },
+      ],
+    }),
+  };
+  const res = await worker.fetch(adminRequest('/api/admin/leads.csv', basic('admin', 'pw')), env);
+  assert.equal(res.status, 200);
+  const [, l1, l2, l3] = (await res.text()).split('\n');
+  assert.equal(l1, `1,"'=HYPERLINK(""https://x.example"",""clic"")",'+50688887777,hero,`);
+  assert.equal(l2, `2,'@SUM(A1),'-1,'\tcta_final,`);
+  assert.equal(l3, '3,"Ana, Pérez",8888,hero,');
+});
