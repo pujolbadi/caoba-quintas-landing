@@ -194,8 +194,9 @@ function makeDeps(env) {
         }
       } else if (effect.type === 'notifyAdvisor') {
         // Notificación al asesor: número distinto al cliente, best-effort.
+        // Se espera el envío: una promesa suelta puede cancelarse al devolver la Response.
         if (env.NOTIFY_WA_NUM) {
-          sendTextDirect(env.NOTIFY_WA_NUM, effect.summary, env).catch(e =>
+          await sendTextDirect(env.NOTIFY_WA_NUM, effect.summary, env).catch(e =>
             console.error('Notify send error:', e)
           );
         }

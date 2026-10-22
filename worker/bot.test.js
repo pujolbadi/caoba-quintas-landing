@@ -62,3 +62,26 @@ test('webhook: con el secreto correcto en x-webhook-secret procesa el mensaje', 
   assert.equal(sent.length, 1);
   assert.equal(sent[0].body.number, '50688887777');
 });
+
+/* ── A-16: la notificación al asesor se espera antes de responder ── */
+
+test('paso 3: el aviso al asesor ya se envió cuando el webhook responde', async () => {
+  // Respuestas lentas de la API: si el aviso no se espera, queda colgado tras la Response.
+  globalThis.fetch = async (url, init) => {
+    await new Promise(r => setTimeout(r, 20));
+    sent.push({ url: String(url), body: JSON.parse(init.body) });
+    return new Response('{}', { status: 200 });
+  };
+  const env = {
+    ...baseEnv(),
+    WA_WEBHOOK_SECRET: 's3cr3t',
+    NOTIFY_WA_NUM: '50611112222',
+    DB: makeFakeDB({ rows: [{ step: 3, nombre: 'Ana', cedula: '1-1111-1111', disponibilidad: null, completed_at: null }] }),
+  };
+  const res = await bot.fetch(webhook({
+    headers: { 'x-webhook-secret': 's3cr3t' },
+    body: { remoteJid: '50688887777', text: 'lunes en la tarde', messageId: 'm3' },
+  }), env);
+  assert.equal(res.status, 200);
+  assert.deepEqual(sent.map(s => s.body.number), ['50688887777', '50611112222']);
+});
