@@ -72,15 +72,15 @@ async function handleAdmin(request, env) {
 
   const tableRows = rows.map(r => `
     <tr>
-      <td>${r.id}</td>
+      <td>${esc(r.id)}</td>
       <td>${esc(r.nombre)}</td>
-      <td><a href="https://wa.me/${r.telefono.replace(/\D/g, '')}" target="_blank">${esc(r.telefono)}</a></td>
-      <td><span class="badge ${r.fuente}">${esc(r.fuente)}</span></td>
-      <td>${r.created_at ? new Date(r.created_at).toLocaleString('es-CR') : '—'}</td>
+      <td><a href="https://wa.me/${esc(String(r.telefono || '').replace(/\D/g, ''))}" target="_blank">${esc(r.telefono)}</a></td>
+      <td><span class="badge ${esc(r.fuente)}">${esc(r.fuente)}</span></td>
+      <td>${r.created_at ? esc(new Date(r.created_at).toLocaleString('es-CR')) : '—'}</td>
     </tr>`).join('');
 
   const fuenteBadges = Object.entries(fuentes).map(([k, v]) =>
-    `<div class="stat-card"><div class="stat-num">${v}</div><div class="stat-lbl">${k}</div></div>`
+    `<div class="stat-card"><div class="stat-num">${esc(v)}</div><div class="stat-lbl">${esc(k)}</div></div>`
   ).join('');
 
   const html = `<!DOCTYPE html>
@@ -216,6 +216,9 @@ async function handleLead(request, env) {
   if (!nombre || !telefono) {
     return corsResponse({ error: 'nombre y telefono son requeridos' }, 400);
   }
+  if (!fuenteValida(fuente)) {
+    return corsResponse({ error: 'fuente inválida' }, 400);
+  }
 
   try {
     await env.DB.prepare(
@@ -254,6 +257,15 @@ async function sendEmail(env, nombre, telefono, fuente) {
 }
 
 /* ── Helpers ─────────────────────────────────────────────────── */
+// Fuentes que envía el sitio: formulario del hero, CTA final y CTA con lote
+// elegido (`lote_<nombre-del-lote>`, ver public/index.html).
+const FUENTES = new Set(['hero', 'cta_final']);
+const FUENTE_LOTE = /^lote_[a-z0-9-]{1,32}$/;
+
+function fuenteValida(fuente) {
+  return FUENTES.has(fuente) || FUENTE_LOTE.test(fuente);
+}
+
 function corsResponse(body, status) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -265,7 +277,7 @@ function corsResponse(body, status) {
 }
 
 function esc(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 function csvEsc(s) {
