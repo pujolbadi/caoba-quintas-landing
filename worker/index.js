@@ -29,16 +29,16 @@ export default {
 /* ── Auth helper ─────────────────────────────────────────────── */
 // Sin ADMIN_PASSWORD configurada el panel queda cerrado (503): no hay
 // contraseña por defecto. Configurar con `wrangler secret put ADMIN_PASSWORD`.
-function adminGuard(request, env) {
+async function adminGuard(request, env) {
   if (!env.ADMIN_PASSWORD) {
     console.error('ADMIN_PASSWORD no configurada: panel de administración deshabilitado.');
     return new Response('Panel no configurado', { status: 503 });
   }
-  if (!checkAuth(request, env)) return unauthorizedResponse();
+  if (!(await checkAuth(request, env))) return unauthorizedResponse();
   return null;
 }
 
-function checkAuth(request, env) {
+async function checkAuth(request, env) {
   const authHeader = request.headers.get('Authorization') || '';
   if (!authHeader.startsWith('Basic ')) return false;
 
@@ -48,7 +48,26 @@ function checkAuth(request, env) {
   if (sep === -1) return false;
   const user = decoded.slice(0, sep);
   const pass = decoded.slice(sep + 1);
-  return user === 'admin' && pass === env.ADMIN_PASSWORD;
+  const passOk = await secretEquals(pass, env.ADMIN_PASSWORD);
+  return user === 'admin' && passOk;
+}
+
+// Compara en tiempo constante: digiere ambos valores con SHA-256 (misma
+// longitud) y usa crypto.subtle.timingSafeEqual de workerd. Fuera de workerd
+// (pruebas en Node) cae a una comparación XOR sin cortocircuito.
+async function secretEquals(a, b) {
+  const enc = new TextEncoder();
+  const [da, db] = await Promise.all([
+    crypto.subtle.digest('SHA-256', enc.encode(a)),
+    crypto.subtle.digest('SHA-256', enc.encode(b)),
+  ]);
+  if (typeof crypto.subtle.timingSafeEqual === 'function') {
+    return crypto.subtle.timingSafeEqual(da, db);
+  }
+  const x = new Uint8Array(da), y = new Uint8Array(db);
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
+  return diff === 0;
 }
 
 function unauthorizedResponse() {
@@ -60,7 +79,7 @@ function unauthorizedResponse() {
 
 /* ── Admin HTML dashboard ────────────────────────────────────── */
 async function handleAdmin(request, env) {
-  const denied = adminGuard(request, env);
+  const denied = await adminGuard(request, env);
   if (denied) return denied;
 
   const { results } = await env.DB.prepare(
@@ -177,7 +196,7 @@ function filtrar(){
 
 /* ── Admin API: leads JSON / CSV ─────────────────────────────── */
 async function handleAdminLeads(request, env, format) {
-  const denied = adminGuard(request, env);
+  const denied = await adminGuard(request, env);
   if (denied) return denied;
 
   const { results } = await env.DB.prepare(

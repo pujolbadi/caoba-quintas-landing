@@ -139,3 +139,27 @@ test('panel: acepta una contraseña que contiene dos puntos', async () => {
   const prefijo = await worker.fetch(adminRequest('/api/admin', basic('admin', 'a')), env);
   assert.equal(prefijo.status, 401);
 });
+
+/* ── Revisión: comparación en tiempo constante ───────────────── */
+
+test('panel: compara la contraseña con crypto.subtle.timingSafeEqual sobre digests de igual longitud', async t => {
+  // workerd expone crypto.subtle.timingSafeEqual; Node no, así que se simula.
+  const llamadas = [];
+  const previo = crypto.subtle.timingSafeEqual;
+  crypto.subtle.timingSafeEqual = (a, b) => {
+    llamadas.push([a.byteLength, b.byteLength]);
+    const x = new Uint8Array(a), y = new Uint8Array(b);
+    return x.length === y.length && x.every((v, i) => v === y[i]);
+  };
+  t.after(() => {
+    if (previo) crypto.subtle.timingSafeEqual = previo;
+    else delete crypto.subtle.timingSafeEqual;
+  });
+
+  const env = { DB: makeFakeDB(), ADMIN_PASSWORD: 'secreto-largo' };
+  const mala = await worker.fetch(adminRequest('/api/admin', basic('admin', 'x')), env);
+  assert.equal(mala.status, 401);
+  const buena = await worker.fetch(adminRequest('/api/admin', basic('admin', 'secreto-largo')), env);
+  assert.equal(buena.status, 200);
+  assert.deepEqual(llamadas, [[32, 32], [32, 32]], 'una comparación de digests SHA-256 por intento');
+});
