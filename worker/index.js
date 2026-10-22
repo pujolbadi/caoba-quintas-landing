@@ -43,7 +43,11 @@ function checkAuth(request, env) {
   if (!authHeader.startsWith('Basic ')) return false;
 
   const decoded = atob(authHeader.slice(6));
-  const [user, pass] = decoded.split(':');
+  // Basic: el usuario termina en el primer ':'; la contraseña puede contener ':'.
+  const sep = decoded.indexOf(':');
+  if (sep === -1) return false;
+  const user = decoded.slice(0, sep);
+  const pass = decoded.slice(sep + 1);
   return user === 'admin' && pass === env.ADMIN_PASSWORD;
 }
 

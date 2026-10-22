@@ -129,3 +129,13 @@ test('csv: neutraliza valores que empiezan como fórmula', async () => {
   assert.equal(l2, `2,'@SUM(A1),'-1,'\tcta_final,`);
   assert.equal(l3, '3,"Ana, Pérez",8888,hero,');
 });
+
+/* ── Revisión: contraseñas con ':' ───────────────────────────── */
+
+test('panel: acepta una contraseña que contiene dos puntos', async () => {
+  const env = { DB: makeFakeDB(), ADMIN_PASSWORD: 'a:b:c' };
+  const ok = await worker.fetch(adminRequest('/api/admin', basic('admin', 'a:b:c')), env);
+  assert.equal(ok.status, 200);
+  const prefijo = await worker.fetch(adminRequest('/api/admin', basic('admin', 'a')), env);
+  assert.equal(prefijo.status, 401);
+});
