@@ -57,7 +57,8 @@ npx wrangler deploy --config config/wrangler.toml
 npx wrangler deploy --config config/wrangler.bot.toml
 ```
 
-CI: `.github/workflows/deploy-pages.yml` (solo el sitio estático, auto en push a `main`). Los
+CI: `.github/workflows/deploy-pages.yml` corre `npm test` en cada PR y push; el job de deploy del sitio
+estático depende de que pasen y solo corre en `main`. Los
 workers se despliegan manualmente — no hay workflow de CI para ellos.
 
 ## 6. Rollback
