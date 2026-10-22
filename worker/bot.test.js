@@ -85,3 +85,55 @@ test('paso 3: el aviso al asesor ya se envió cuando el webhook responde', async
   assert.equal(res.status, 200);
   assert.deepEqual(sent.map(s => s.body.number), ['50688887777', '50611112222']);
 });
+
+/* ── M-054: adaptadores de payload y firma de Meta ───────────── */
+
+const conSecreto = () => ({ ...baseEnv(), WA_WEBHOOK_SECRET: 's3cr3t' });
+const hdr = { 'x-webhook-secret': 's3cr3t' };
+
+test('evolution messages.upsert: responde al remoteJid sin el sufijo de WhatsApp', async () => {
+  const body = { event: 'messages.upsert', data: { key: { remoteJid: '50688887777@s.whatsapp.net', id: 'ABC' }, message: { conversation: 'hola' } } };
+  const res = await bot.fetch(webhook({ headers: hdr, body }), conSecreto());
+  assert.equal(res.status, 200);
+  assert.deepEqual(sent.map(s => s.body.number), ['50688887777']);
+});
+
+test('evolution: ignora los mensajes propios (fromMe)', async () => {
+  const body = { data: { key: { remoteJid: '50688887777@s.whatsapp.net', id: 'X', fromMe: true }, message: { conversation: 'info' } } };
+  const res = await bot.fetch(webhook({ headers: hdr, body }), conSecreto());
+  assert.equal(res.status, 200);
+  assert.equal(sent.length, 0);
+});
+
+test('formato Dify: usa el usuario como teléfono y no deduplica (sin messageId)', async () => {
+  const env = conSecreto();
+  const body = { query: 'info', user: '50688887777@c.us', conversation_id: 'c1', inputs: {} };
+  const res = await bot.fetch(webhook({ headers: hdr, body }), env);
+  assert.equal(res.status, 200);
+  assert.deepEqual(sent.map(s => s.body.number), ['50688887777']);
+  assert.ok(!env.DB.calls.some(c => c.sql.includes('wa_inbound')), 'sin dedup');
+  const upsert = env.DB.calls.find(c => c.sql.includes('INSERT INTO wa_sessions'));
+  assert.equal(upsert.params[1], 1, 'la sesión avanza al paso 1');
+});
+
+async function firmaMeta(secret, body) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(body));
+  return 'sha256=' + [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+test('meta: acepta la firma HMAC válida y rechaza una alterada', async () => {
+  const env = { ...baseEnv(), WA_PROVIDER: 'meta', WA_APP_SECRET: 'app', WA_PHONE_ID: 'p1' };
+  const body = { entry: [{ changes: [{ value: { messages: [{ from: '50688887777', id: 'w1', type: 'text', text: { body: 'hola' } }] } }] }] };
+  const raw = JSON.stringify(body);
+  const firma = await firmaMeta('app', raw);
+
+  const mala = await bot.fetch(webhook({ headers: { 'x-hub-signature-256': firma.replace(/.$/, c => (c === '0' ? '1' : '0')) }, body }), env);
+  assert.equal(mala.status, 403);
+
+  const buena = await bot.fetch(webhook({ headers: { 'x-hub-signature-256': firma }, body }), env);
+  assert.equal(buena.status, 200);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].body.to, '50688887777');
+});
