@@ -34,6 +34,9 @@ desplegables independientes que comparten una única D1.
     usuario `admin`). Sin `ADMIN_PASSWORD` el panel responde 503: no hay contraseña por defecto.
   - Worker `caoba-bot`: `WA_PROVIDER`, `WA_API_URL`, `WA_API_TOKEN`, `WA_INSTANCE`, `WA_PHONE_ID`,
     `BOT_WA_NUM`, `NOTIFY_WA_NUM`, `WA_VERIFY_TOKEN`, `WA_APP_SECRET`, `WA_WEBHOOK_SECRET`.
+    El webhook falla cerrado: con Evolution (u otro proveedor) exige `WA_WEBHOOK_SECRET` y que el
+    proveedor lo envíe en el header `x-webhook-secret`; con Meta exige `WA_APP_SECRET`. Sin el secreto
+    del proveedor todo POST responde 403.
   - **Pendiente**: no hay gestor de secretos compartido; ver nota en Notion "Documentación Técnica → Por confirmar".
 
 ## 4. Desarrollo local
