@@ -27,14 +27,24 @@ export default {
 };
 
 /* ── Auth helper ─────────────────────────────────────────────── */
+// Sin ADMIN_PASSWORD configurada el panel queda cerrado (503): no hay
+// contraseña por defecto. Configurar con `wrangler secret put ADMIN_PASSWORD`.
+function adminGuard(request, env) {
+  if (!env.ADMIN_PASSWORD) {
+    console.error('ADMIN_PASSWORD no configurada: panel de administración deshabilitado.');
+    return new Response('Panel no configurado', { status: 503 });
+  }
+  if (!checkAuth(request, env)) return unauthorizedResponse();
+  return null;
+}
+
 function checkAuth(request, env) {
   const authHeader = request.headers.get('Authorization') || '';
   if (!authHeader.startsWith('Basic ')) return false;
 
   const decoded = atob(authHeader.slice(6));
   const [user, pass] = decoded.split(':');
-  const expectedPass = env.ADMIN_PASSWORD || 'CQ_Admin_2026';
-  return user === 'admin' && pass === expectedPass;
+  return user === 'admin' && pass === env.ADMIN_PASSWORD;
 }
 
 function unauthorizedResponse() {
@@ -46,7 +56,8 @@ function unauthorizedResponse() {
 
 /* ── Admin HTML dashboard ────────────────────────────────────── */
 async function handleAdmin(request, env) {
-  if (!checkAuth(request, env)) return unauthorizedResponse();
+  const denied = adminGuard(request, env);
+  if (denied) return denied;
 
   const { results } = await env.DB.prepare(
     'SELECT id, nombre, telefono, fuente, created_at FROM leads ORDER BY created_at DESC LIMIT 500'
@@ -162,7 +173,8 @@ function filtrar(){
 
 /* ── Admin API: leads JSON / CSV ─────────────────────────────── */
 async function handleAdminLeads(request, env, format) {
-  if (!checkAuth(request, env)) return unauthorizedResponse();
+  const denied = adminGuard(request, env);
+  if (denied) return denied;
 
   const { results } = await env.DB.prepare(
     'SELECT id, nombre, telefono, fuente, created_at FROM leads ORDER BY created_at DESC'
