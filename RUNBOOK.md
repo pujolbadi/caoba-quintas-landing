@@ -30,9 +30,13 @@ desplegables independientes que comparten una única D1.
   - Local (gitignored): `secrets/credenciales_caoba.md` — Cloudflare, D1, Worker Secrets, Resend,
     panel admin, GitHub, dominios, deploy, Evolution API, teléfonos del proyecto.
     **⚠️ Este archivo guarda valores en texto plano — ver riesgo en sección 11.**
-  - Worker `caoba-leads`: `RESEND_API_KEY`.
+  - Worker `caoba-leads`: `RESEND_API_KEY`, `ADMIN_PASSWORD` (contraseña del panel `/api/admin`,
+    usuario `admin`). Sin `ADMIN_PASSWORD` el panel responde 503: no hay contraseña por defecto.
   - Worker `caoba-bot`: `WA_PROVIDER`, `WA_API_URL`, `WA_API_TOKEN`, `WA_INSTANCE`, `WA_PHONE_ID`,
     `BOT_WA_NUM`, `NOTIFY_WA_NUM`, `WA_VERIFY_TOKEN`, `WA_APP_SECRET`, `WA_WEBHOOK_SECRET`.
+    El webhook falla cerrado: con Evolution (u otro proveedor) exige `WA_WEBHOOK_SECRET` y que el
+    proveedor lo envíe en el header `x-webhook-secret`; con Meta exige `WA_APP_SECRET`. Sin el secreto
+    del proveedor todo POST responde 403.
   - **Pendiente**: no hay gestor de secretos compartido; ver nota en Notion "Documentación Técnica → Por confirmar".
 
 ## 4. Desarrollo local
@@ -53,7 +57,8 @@ npx wrangler deploy --config config/wrangler.toml
 npx wrangler deploy --config config/wrangler.bot.toml
 ```
 
-CI: `.github/workflows/deploy-pages.yml` (solo el sitio estático, auto en push a `main`). Los
+CI: `.github/workflows/deploy-pages.yml` corre `npm test` en cada PR y push; el job de deploy del sitio
+estático depende de que pasen y solo corre en `main`. Los
 workers se despliegan manualmente — no hay workflow de CI para ellos.
 
 ## 6. Rollback
@@ -65,6 +70,7 @@ Para workers: `npx wrangler deployments list --name caoba-leads` (o `caoba-bot`)
 
 ```bash
 npx wrangler secret put RESEND_API_KEY --config config/wrangler.toml
+npx wrangler secret put ADMIN_PASSWORD --config config/wrangler.toml
 npx wrangler secret put WA_API_TOKEN --config config/wrangler.bot.toml
 # repetir por cada secret listado en sección 3
 ```

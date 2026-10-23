@@ -16,3 +16,4 @@ NOTIFY_EMAIL = "udmr343@gmail.com"
 # Este archivo vive en config/. Invocá wrangler con --config config/wrangler.toml desde la raíz.
 # Secrets (NO van aquí — usa: npx wrangler secret put RESEND_API_KEY --config config/wrangler.toml)
 # RESEND_API_KEY = "re_..."
+# ADMIN_PASSWORD  — contraseña del panel /api/admin (usuario admin). Obligatoria: sin ella el panel responde 503.

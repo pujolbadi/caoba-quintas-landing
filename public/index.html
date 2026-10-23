@@ -1608,6 +1608,7 @@ const Hero = () => {
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [sendError, setSendError] = useState(false);
   const submit = async e => {
     e.preventDefault();
     const errs = {};
@@ -1618,8 +1619,10 @@ const Hero = () => {
       return;
     }
     setLoading(true);
+    setSendError(false);
+    let ok = false;
     try {
-      await fetch('/api/leads', {
+      const res = await fetch('/api/leads', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -1630,9 +1633,10 @@ const Hero = () => {
           fuente: 'hero'
         })
       });
-    } catch (_) {/* continúa — muestra éxito igual para no bloquear UX */}
+      ok = res.ok;
+    } catch (_) {/* error de red: se muestra el aviso con alternativa por WhatsApp */}
     setLoading(false);
-    setSubmitted(true);
+    if (ok) setSubmitted(true);else setSendError(true);
   };
   return /*#__PURE__*/React.createElement("section", {
     id: "proyecto",
@@ -1725,7 +1729,20 @@ const Hero = () => {
     disabled: loading
   }, loading ? 'Enviando…' : /*#__PURE__*/React.createElement(React.Fragment, null, "Quiero informaci\xF3n ", /*#__PURE__*/React.createElement("span", {
     className: "arr"
-  }, "\u2192")))))) : /*#__PURE__*/React.createElement(SuccessAnim, null), /*#__PURE__*/React.createElement("div", {
+  }, "\u2192"))))), sendError && /*#__PURE__*/React.createElement("div", {
+    role: "alert",
+    style: {
+      fontSize: 13,
+      color: '#b3261e',
+      marginTop: 8
+    }
+  }, "No pudimos enviar tus datos. Intent\xE1 de nuevo o escribinos por ", /*#__PURE__*/React.createElement("a", {
+    href: WA_URL,
+    style: {
+      color: 'inherit',
+      fontWeight: 600
+    }
+  }, "WhatsApp \u2192"))) : /*#__PURE__*/React.createElement(SuccessAnim, null), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexWrap: 'wrap',
@@ -3537,6 +3554,7 @@ const CTAFinal = () => {
   const [phone, setPhone] = useState('');
   const [done, setDone] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState(false);
   const [loteInfo, setLoteInfo] = useState(null);
   useEffect(() => {
     const fn = e => setLoteInfo(e.detail);
@@ -3546,9 +3564,11 @@ const CTAFinal = () => {
   const submitFinal = async () => {
     if (!name.trim() || !phone.trim()) return;
     setSending(true);
+    setSendError(false);
     const fuente = loteInfo ? `lote_${loteInfo.name.replace(/\s+/g, '-').toLowerCase()}` : 'cta_final';
+    let ok = false;
     try {
-      await fetch('/api/leads', {
+      const res = await fetch('/api/leads', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -3559,9 +3579,10 @@ const CTAFinal = () => {
           fuente
         })
       });
-    } catch (_) {/* silencioso — no bloquear UX */}
+      ok = res.ok;
+    } catch (_) {/* error de red: se muestra el aviso con alternativa por WhatsApp */}
     setSending(false);
-    setDone(true);
+    if (ok) setDone(true);else setSendError(true);
   };
   return /*#__PURE__*/React.createElement("section", {
     id: "contacto",
@@ -3699,7 +3720,20 @@ const CTAFinal = () => {
     disabled: sending
   }, sending ? 'Enviando…' : /*#__PURE__*/React.createElement(React.Fragment, null, "Agendar visita guiada ", /*#__PURE__*/React.createElement("span", {
     className: "arr"
-  }, "\u2192"))))) : /*#__PURE__*/React.createElement("div", {
+  }, "\u2192")))), sendError && /*#__PURE__*/React.createElement("div", {
+    role: "alert",
+    style: {
+      fontSize: 14,
+      marginTop: 14,
+      color: 'var(--crema-arena)'
+    }
+  }, "No pudimos enviar tus datos. Intent\xE1 de nuevo o escribinos por ", /*#__PURE__*/React.createElement("a", {
+    href: WA_URL,
+    style: {
+      color: '#7fffb0',
+      fontWeight: 600
+    }
+  }, "WhatsApp \u2192"))) : /*#__PURE__*/React.createElement("div", {
     style: {
       background: 'rgba(255,255,255,.12)',
       borderRadius: 14,

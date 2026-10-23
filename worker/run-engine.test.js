@@ -62,3 +62,28 @@ test('mensaje duplicado: no decide, no envía, no aplica efectos', async () => {
   assert.equal(res.status, 'duplicate');
   assert.deepEqual(log, []);
 });
+
+test('si falla saveSession no se aplican los efectos que dependen de él (sin lead ni aviso duplicados)', async () => {
+  const { deps, log, sessions } = makeDeps();
+  sessions.set('506', { step: 3, nombre: 'Ana', cedula: '1-1111-1111' });
+  deps.applyEffect = async effect => {
+    log.push(['effect', effect.type]);
+    if (effect.type === 'saveSession') throw new Error('D1 caído');
+  };
+  const res = await runEngine({ phone: '506', text: 'lunes', messageId: 'm9' }, deps);
+
+  assert.equal(res.status, 'ok');
+  assert.deepEqual(log, [['send', '506'], ['effect', 'saveSession']]);
+});
+
+test('si falla un efecto que no es saveSession, los siguientes se siguen aplicando', async () => {
+  const { deps, log, sessions } = makeDeps();
+  sessions.set('506', { step: 3, nombre: 'Ana', cedula: '1-1111-1111' });
+  deps.applyEffect = async effect => {
+    log.push(['effect', effect.type]);
+    if (effect.type === 'insertLead') throw new Error('D1 leads');
+  };
+  await runEngine({ phone: '506', text: 'lunes', messageId: 'm10' }, deps);
+
+  assert.deepEqual(log, [['send', '506'], ['effect', 'saveSession'], ['effect', 'insertLead'], ['effect', 'notifyAdvisor']]);
+});

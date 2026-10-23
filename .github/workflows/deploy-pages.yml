@@ -3,10 +3,26 @@ name: Deploy a Cloudflare Pages
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Sin dependencias: npm test corre node --test sobre worker/*.test.js.
+      - run: npm test
+
   deploy:
+    needs: test
+    # Solo se despliega desde main (push o ejecución manual), nunca desde un PR.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read

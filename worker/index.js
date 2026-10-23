@@ -27,14 +27,47 @@ export default {
 };
 
 /* ── Auth helper ─────────────────────────────────────────────── */
-function checkAuth(request, env) {
+// Sin ADMIN_PASSWORD configurada el panel queda cerrado (503): no hay
+// contraseña por defecto. Configurar con `wrangler secret put ADMIN_PASSWORD`.
+async function adminGuard(request, env) {
+  if (!env.ADMIN_PASSWORD) {
+    console.error('ADMIN_PASSWORD no configurada: panel de administración deshabilitado.');
+    return new Response('Panel no configurado', { status: 503 });
+  }
+  if (!(await checkAuth(request, env))) return unauthorizedResponse();
+  return null;
+}
+
+async function checkAuth(request, env) {
   const authHeader = request.headers.get('Authorization') || '';
   if (!authHeader.startsWith('Basic ')) return false;
 
   const decoded = atob(authHeader.slice(6));
-  const [user, pass] = decoded.split(':');
-  const expectedPass = env.ADMIN_PASSWORD || 'CQ_Admin_2026';
-  return user === 'admin' && pass === expectedPass;
+  // Basic: el usuario termina en el primer ':'; la contraseña puede contener ':'.
+  const sep = decoded.indexOf(':');
+  if (sep === -1) return false;
+  const user = decoded.slice(0, sep);
+  const pass = decoded.slice(sep + 1);
+  const passOk = await secretEquals(pass, env.ADMIN_PASSWORD);
+  return user === 'admin' && passOk;
+}
+
+// Compara en tiempo constante: digiere ambos valores con SHA-256 (misma
+// longitud) y usa crypto.subtle.timingSafeEqual de workerd. Fuera de workerd
+// (pruebas en Node) cae a una comparación XOR sin cortocircuito.
+async function secretEquals(a, b) {
+  const enc = new TextEncoder();
+  const [da, db] = await Promise.all([
+    crypto.subtle.digest('SHA-256', enc.encode(a)),
+    crypto.subtle.digest('SHA-256', enc.encode(b)),
+  ]);
+  if (typeof crypto.subtle.timingSafeEqual === 'function') {
+    return crypto.subtle.timingSafeEqual(da, db);
+  }
+  const x = new Uint8Array(da), y = new Uint8Array(db);
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
+  return diff === 0;
 }
 
 function unauthorizedResponse() {
@@ -46,7 +79,8 @@ function unauthorizedResponse() {
 
 /* ── Admin HTML dashboard ────────────────────────────────────── */
 async function handleAdmin(request, env) {
-  if (!checkAuth(request, env)) return unauthorizedResponse();
+  const denied = await adminGuard(request, env);
+  if (denied) return denied;
 
   const { results } = await env.DB.prepare(
     'SELECT id, nombre, telefono, fuente, created_at FROM leads ORDER BY created_at DESC LIMIT 500'
@@ -61,15 +95,15 @@ async function handleAdmin(request, env) {
 
   const tableRows = rows.map(r => `
     <tr>
-      <td>${r.id}</td>
+      <td>${esc(r.id)}</td>
       <td>${esc(r.nombre)}</td>
-      <td><a href="https://wa.me/${r.telefono.replace(/\D/g, '')}" target="_blank">${esc(r.telefono)}</a></td>
-      <td><span class="badge ${r.fuente}">${esc(r.fuente)}</span></td>
-      <td>${r.created_at ? new Date(r.created_at).toLocaleString('es-CR') : '—'}</td>
+      <td><a href="https://wa.me/${esc(String(r.telefono || '').replace(/\D/g, ''))}" target="_blank">${esc(r.telefono)}</a></td>
+      <td><span class="badge ${esc(r.fuente)}">${esc(r.fuente)}</span></td>
+      <td>${r.created_at ? esc(new Date(r.created_at).toLocaleString('es-CR')) : '—'}</td>
     </tr>`).join('');
 
   const fuenteBadges = Object.entries(fuentes).map(([k, v]) =>
-    `<div class="stat-card"><div class="stat-num">${v}</div><div class="stat-lbl">${k}</div></div>`
+    `<div class="stat-card"><div class="stat-num">${esc(v)}</div><div class="stat-lbl">${esc(k)}</div></div>`
   ).join('');
 
   const html = `<!DOCTYPE html>
@@ -162,7 +196,8 @@ function filtrar(){
 
 /* ── Admin API: leads JSON / CSV ─────────────────────────────── */
 async function handleAdminLeads(request, env, format) {
-  if (!checkAuth(request, env)) return unauthorizedResponse();
+  const denied = await adminGuard(request, env);
+  if (denied) return denied;
 
   const { results } = await env.DB.prepare(
     'SELECT id, nombre, telefono, fuente, created_at FROM leads ORDER BY created_at DESC'
@@ -204,6 +239,12 @@ async function handleLead(request, env) {
   if (!nombre || !telefono) {
     return corsResponse({ error: 'nombre y telefono son requeridos' }, 400);
   }
+  if (nombre.length > MAX_CAMPO || telefono.length > MAX_CAMPO) {
+    return corsResponse({ error: `nombre y telefono admiten hasta ${MAX_CAMPO} caracteres` }, 400);
+  }
+  if (!fuenteValida(fuente)) {
+    return corsResponse({ error: 'fuente inválida' }, 400);
+  }
 
   try {
     await env.DB.prepare(
@@ -234,14 +275,25 @@ async function sendEmail(env, nombre, telefono, fuente) {
       from: 'leads@caobaquintas.com',
       to: env.NOTIFY_EMAIL,
       subject: `Nuevo lead — ${nombre}`,
-      html: `<p><strong>Nombre:</strong> ${nombre}</p>
-             <p><strong>Teléfono:</strong> ${telefono}</p>
-             <p><strong>Fuente:</strong> ${fuente}</p>`,
+      html: `<p><strong>Nombre:</strong> ${esc(nombre)}</p>
+             <p><strong>Teléfono:</strong> ${esc(telefono)}</p>
+             <p><strong>Fuente:</strong> ${esc(fuente)}</p>`,
     }),
   });
 }
 
 /* ── Helpers ─────────────────────────────────────────────────── */
+// Fuentes que envía el sitio: formulario del hero, CTA final y CTA con lote
+// elegido (`lote_<nombre-del-lote>`, ver public/index.html).
+const MAX_CAMPO = 120;
+
+const FUENTES = new Set(['hero', 'cta_final']);
+const FUENTE_LOTE = /^lote_[a-z0-9-]{1,32}$/;
+
+function fuenteValida(fuente) {
+  return FUENTES.has(fuente) || FUENTE_LOTE.test(fuente);
+}
+
 function corsResponse(body, status) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -253,11 +305,14 @@ function corsResponse(body, status) {
 }
 
 function esc(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+// Además de entrecomillar, antepone ' a lo que Excel/Sheets interpretaría como
+// fórmula (= + - @ tabulador, retorno de carro): evita la inyección de CSV.
 function csvEsc(s) {
-  const str = String(s || '');
+  let str = String(s || '');
+  if (/^[=+\-@\t\r]/.test(str)) str = `'${str}`;
   return str.includes(',') || str.includes('"') || str.includes('\n')
     ? `"${str.replace(/"/g, '""')}"` : str;
 }

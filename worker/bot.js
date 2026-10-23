@@ -40,15 +40,17 @@ function handleMetaVerify(url, env) {
 /* ── Autenticación del webhook entrante (POST) ───────────────── */
 // Devuelve true si la petición es legítima. Meta: firma HMAC X-Hub-Signature-256
 // sobre el cuerpo crudo con WA_APP_SECRET. Otros proveedores: secreto compartido
-// en header `x-webhook-secret` (o query `?secret=`) contra WA_WEBHOOK_SECRET.
+// en header `x-webhook-secret` contra WA_WEBHOOK_SECRET. Si falta el secreto del
+// proveedor, rechaza (falla cerrado). No se acepta el secreto en la query: las
+// URLs quedan en los logs.
 async function verifyWebhook(request, rawBody, url, env) {
   const provider = env.WA_PROVIDER || '';
 
   if (provider === 'meta') {
     const secret = env.WA_APP_SECRET;
     if (!secret) {
-      console.warn('WA_APP_SECRET no configurado: webhook Meta sin verificar.');
-      return true; // no bloquear el go-live; configurar el secreto cuanto antes
+      console.error('WA_APP_SECRET no configurado: webhook Meta rechazado.');
+      return false;
     }
     const header = request.headers.get('x-hub-signature-256') || '';
     const expected = 'sha256=' + (await hmacSha256Hex(secret, rawBody));
@@ -57,10 +59,10 @@ async function verifyWebhook(request, rawBody, url, env) {
 
   const secret = env.WA_WEBHOOK_SECRET;
   if (!secret) {
-    console.warn('WA_WEBHOOK_SECRET no configurado: webhook sin verificar.');
-    return true;
+    console.error('WA_WEBHOOK_SECRET no configurado: webhook rechazado.');
+    return false;
   }
-  const provided = request.headers.get('x-webhook-secret') || url.searchParams.get('secret') || '';
+  const provided = request.headers.get('x-webhook-secret') || '';
   return timingSafeEqual(provided, secret);
 }
 
@@ -192,8 +194,9 @@ function makeDeps(env) {
         }
       } else if (effect.type === 'notifyAdvisor') {
         // Notificación al asesor: número distinto al cliente, best-effort.
+        // Se espera el envío: una promesa suelta puede cancelarse al devolver la Response.
         if (env.NOTIFY_WA_NUM) {
-          sendTextDirect(env.NOTIFY_WA_NUM, effect.summary, env).catch(e =>
+          await sendTextDirect(env.NOTIFY_WA_NUM, effect.summary, env).catch(e =>
             console.error('Notify send error:', e)
           );
         }

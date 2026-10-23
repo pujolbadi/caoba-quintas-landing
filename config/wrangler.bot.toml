@@ -24,4 +24,5 @@ SESSION_TTL_DAYS = "30"
 #                   Debe coincidir con el configurado en el panel de Meta. NO reutilizar WA_API_TOKEN.
 # WA_APP_SECRET   — App Secret de Meta, para verificar la firma HMAC X-Hub-Signature-256 del POST. Solo Meta.
 # WA_WEBHOOK_SECRET — Secreto compartido para autenticar el webhook (otros proveedores).
-#                     Enviar en header `x-webhook-secret` o query `?secret=`. Si no se configura, el POST queda SIN verificar.
+#                     Enviar en header `x-webhook-secret` (la query `?secret=` ya no se acepta).
+#                     Obligatorio: sin el secreto del proveedor (este o WA_APP_SECRET en Meta) el POST responde 403.

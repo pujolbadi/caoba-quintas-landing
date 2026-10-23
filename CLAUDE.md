@@ -27,7 +27,7 @@ Session history and decisions are logged in `BITACORA.md`.
 ## Commands
 
 ```bash
-npm test                                  # runs worker/*.test.js (node:test), 15 tests
+npm test                                  # runs worker/*.test.js (node:test): engine, bot and leads worker
 node --test worker/engine.test.js         # single file
 node --test worker/engine.test.js -t "sin sesión"  # single test by name pattern
 
